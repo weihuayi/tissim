@@ -98,6 +98,9 @@ e2dof = space.edge_to_dof()
 slip_threshold = 1.05
 
 control = True
+anidata_up = []
+anidata_down = []
+anidata_middle = []
 for i in range(nt):
     t = timeline.next_time_level()
     print(f"第{i+1}步")
@@ -131,7 +134,7 @@ for i in range(nt):
     up_node, down_node = solver.interface_on_boundary(phi1)
     up_dof, down_dof = solver.slip_dof(up_node, down_node, hh)
     value = bm.mean(bm.abs(stress[up_dof,0,1]))
-    print("值:",value)
+    #print("值:",value)
     if (i>50) & (value > 30) & control:
         print("开始slip")
         from fealpy.decorator import barycentric,cartesian
@@ -163,7 +166,7 @@ for i in range(nt):
     
     new_slip_index = bm.array(list(new_slip_set), dtype=bm.int32)
     slip_value = bm.mean(bm.abs(stress[e2dof[new_slip_index],0,1]))
-    print("滑移的值",slip_value)
+    #print("滑移的值",slip_value)
     if slip_value < 1.42:
         control = False
         print("control is False")
@@ -171,16 +174,18 @@ for i in range(nt):
             control = True
             new_slip_set = set()
             print("control is True")
-
-
-        
-        
-    #solver.plot_change_on_y(bm.abs(stress[:,0,1]), y=0.15, space=space)
+ 
+    up_anix,up_aniy =solver.plot_change_on_y(bm.abs(stress[:,0,1]), y=0.15, space=space)
+    down_anix,down_aniy =solver.plot_change_on_y(bm.abs(stress[:,0,1]), y=0, space=space)
+    middle_anix,middle_aniy =solver.plot_change_on_y(bm.abs(stress[:,0,1]), y=0.072, space=space)
+    anidata_up.append(up_aniy)
+    anidata_down.append(down_aniy)
+    anidata_middle.append(middle_aniy)
     #cc = bm.argmax(stress[:,0,1])
     #ip = uspace.interpolation_points()
 
-    print("上边界",up_node)
-    print("下边界",down_node)
+    #print("上边界",up_node)
+    #print("下边界",down_node)
     #print(ip[bm.where(up_dof)])
     #print(ip[bm.where(down_dof)])
 
@@ -190,9 +195,61 @@ for i in range(nt):
     #mesh.celldata['p'] = p2
     mesh.nodedata['p'] = p2
     mesh.nodedata['mu'] = mu2
-    mesh.nodedata['stress0'] = stress[:,0,1]
+    mesh.nodedata['stress01'] = stress[:,0,1]
+    mesh.nodedata['stress00'] = stress[:,0,0]
+    mesh.nodedata['stress11'] = stress[:,1,1]
 
     mesh.to_vtk(fname=fname)
     timeline.advance()
     uuu = u2.reshape(2,-1).T
 #next(time)
+
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+plt.rcParams.update({
+    'font.size': 50,  # 全局字体大小
+})
+
+fig1, ax1 = plt.subplots()
+fig1.set_size_inches(15, 15)
+ax1.set_ylim(0, 2)
+ax1.set_xlabel('x轴坐标')
+ax1.set_ylabel('剪切力大小')
+ax1.set_title('剪切力在上边界随时间变化')
+line1, = ax1.plot(up_anix, anidata_up[0], linewidth=5)
+def update_up(frame):
+    line1.set_ydata(anidata_up[frame])
+    return line1,
+ani1 = FuncAnimation(fig1, update_up, frames=nt, blit=True, interval=75)
+#ani1.save('up.gif', writer='imagemagick')
+ani1.save('up.gif', writer='pillow')
+
+
+fig2, ax2 = plt.subplots()
+fig2.set_size_inches(15, 15)
+ax2.set_ylim(0, 2)
+ax2.set_xlabel('x轴坐标')
+ax2.set_ylabel('剪切力大小')
+ax2.set_title('剪切力在下边界随时间变化')
+line2, = ax2.plot(down_anix, anidata_down[0], linewidth=5)
+def update_down(frame):
+    line2.set_ydata(anidata_down[frame])
+    return line2,
+ani2 = FuncAnimation(fig2, update_down, frames=nt, blit=True, interval=75)
+#ani2.save('down.gif', writer='imagemagick')
+ani2.save('down.gif', writer='pillow')
+
+# fig3, ax3 = plt.subplots()
+# fig3.set_size_inches(15, 15)
+# ax3.set_ylim(0, 50)
+# ax3.set_xlabel('x轴坐标')
+# ax3.set_ylabel('剪切力大小')
+# ax3.set_title('剪切力在下边界随时间变化')
+# line3, = ax3.plot(middle_anix, anidata_middle[0], linewidth=5)
+# def update_middle(frame):
+    # line3.set_ydata(anidata_middle[frame])
+    # return line3,
+# ani2 = FuncAnimation(fig3, update_middle, frames=nt, blit=True, interval=300)
+# ani2.save('middle.gif', writer='imagemagick')
+
+plt.show()

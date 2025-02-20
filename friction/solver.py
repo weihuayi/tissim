@@ -255,8 +255,9 @@ class Solver():
         ip = space.interpolation_points()
         tag = ip[..., 1] == y
         x = ip[tag, 0]
-        plt.plot(bm.sort(x), fun[tag][bm.argsort(x)])
-        plt.show()
+        return bm.sort(x), fun[tag][bm.argsort(x)]
+        #plt.plot(bm.sort(x), fun[tag][bm.argsort(x)])
+        #plt.show()
     
     def interface_on_boundary(self, phi):
         inteface_phi = bm.abs(phi[:])<0.9
