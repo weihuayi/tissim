@@ -28,7 +28,7 @@ displacement, shift = space.periodic(side=box_size)
 
 node_self, neighbors = bm.query_point(mesh.nodedata["position"], mesh.nodedata["position"], 3*h, box_size, True, [True, True, True])
 
-for i in range(100):
+for i in range(1000):
     print(i)
     mesh.nodedata['mv'] += 1.0*dt*mesh.nodedata["dmvdt"]
     mesh.nodedata['tv'] = mesh.nodedata['mv']
