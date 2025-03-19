@@ -3,13 +3,8 @@ bm.set_backend("pytorch")
 from fealpy.mesh.node_mesh import NodeMesh
 from fealpy.cfd.sph.particle_solver_new import SPHSolver
 from fealpy.cfd.sph.particle_kernel_function_new import WendlandC2Kernel
-
-import torch # 打印
-import numpy as np
-torch.set_printoptions(threshold=torch.inf)
-torch.set_printoptions(precision=16, threshold=torch.inf)
-np.set_printoptions(precision=16, threshold=np.inf)
 import matplotlib.pyplot as plt
+path = "frames/"
 
 dx = 1.25e-4
 H = 1.5 * dx
@@ -37,7 +32,7 @@ kernel = WendlandC2Kernel(h=H, dim=2)
 #wall-virtual
 v_node_self, w_neighbors = solver.wall_virtual(mesh.nodedata["position"], mesh.nodedata["tag"])
 
-for i in range(15000):
+for i in range(1):
     print(i)
     #阀门粒子更新
     state = mesh.nodedata
@@ -63,23 +58,22 @@ for i in range(15000):
     state["sound"] = solver.sound(state, B, rho_0, c_1)
 
     # 更新半步密度和半步质量，质量没有更新，需要更新吗？
-    A_s0 = solver.A_matrix(state, f_node, fwvg_neighbors, dr, dw, mask_self=False)
-    state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s0)
+    A_s = solver.A_matrix(state, f_node, fwvg_neighbors, dr, dw)
+    state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s)
     drho_0 = state["drhodt"]
     state["rho"] = state["rho"] + 0.5 * dt * state["drhodt"]
     
     # 更新半步速度
     state["mu"] = solver.mu_wlf(state, node_self, neighbors, grad_w_dist, mu_0, tau_star, n)
-    state["dudt"] = solver.change_u(state, f_node, fwvg_neighbors, dis, dr, dw, H, eta, A_s0)
+    state["dudt"] = solver.change_u(state, f_node, fwvg_neighbors, dis, dr, dw, H, eta, A_s)
     du_0 = state["dudt"]
     state["u"] = state["u"] + 0.5 * dt * state["dudt"]
+    state["u"] = solver.vtag_u(state, v_node_self, w_neighbors, w_node, fg_neighbors, fg_w)
 
-    # 内部和精确自由表面流体粒子的索引
-    A_s1 = solver.A_matrix(state, f_node, fwvg_neighbors, dr, dw, mask_self=True)
-    in_f, free, dC_i , normal = solver.free_surface(state, f_node, fwvg_neighbors, dr, dis, w, dw, A_s1, H)
-    state["drdt"] = solver.shifting_r(state, in_f, free, dC_i, normal, dt, H)
-    drdt_0 = state["drdt"]
-    state["position"] = state["position"] + 0.5 * dt * state["drdt"]
+    #更新半步位置
+    drdt_0 = state["u"] 
+    f_tag = bm.where(state["tag"] == 0)[0] 
+    state["position"] = bm.index_add(state["position"] , f_tag, 0.5*dt*state["u"][f_tag], axis=0, alpha=1) 
 
     state["u"] = solver.vtag_u(state, v_node_self, w_neighbors, w_node, fg_neighbors, fg_w)
 
@@ -90,25 +84,30 @@ for i in range(15000):
     state["sound"] = solver.sound(state, B, rho_0, c_1)
 
     # 更新密度和质量
-    state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s0)
+    state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s)
     drho_1 = state["drhodt"]
     state["rho"] = state["rho"] + 0.5 * dt * state["drhodt"]
     
     # 更新速度
     state["mu"] = solver.mu_wlf(state, node_self, neighbors, grad_w_dist, mu_0, tau_star, n)
-    state["dudt"] = solver.change_u(state, f_node, fwvg_neighbors, dis, dr, dw, H, eta, A_s0)
+    state["dudt"] = solver.change_u(state, f_node, fwvg_neighbors, dis, dr, dw, H, eta, A_s)
     du_1 = state["dudt"]
     state["u"] = state["u"] + 0.5 * dt * state["dudt"]
+    drdt_1 = state["u"] 
 
-    # 内部和精确自由表面流体粒子的索引
-    drdt_1 = solver.shifting_r(state, in_f, free, dC_i, normal, dt, H)
-
+    # 预测-校正时间积分
     state["rho"] = rho + 0.5 * dt * (drho_0 + drho_1)
     state["u"] = u + 0.5 * dt * (du_0 + du_1)
     state["u"] = solver.vtag_u(state, v_node_self, w_neighbors, w_node, fg_neighbors, fg_w)
-    state['position'] = r + 0.5 * dt * (drdt_0 + drdt_1)
+    state["position"] = bm.set_at(state["position"] , f_tag, r[f_tag]+0.5*dt*(drdt_0+drdt_1)[f_tag]) 
     
-    solver.draw(state, i)
+    # shifting 位移
+    in_f, free, dC_i , normal = solver.free_surface(state, f_node, fwvg_neighbors, dr, dis, w, dw, A_s, H)
+    state["drdt"] = solver.shifting_r(state, in_f, free, dC_i, normal, dt, H)
+    state["position"] = state["position"] + dt * state["drdt"] 
+    
+    #fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
+    #solver.write_vtk(mesh.nodedata, fname)
 
 '''
 color = np.full_like(state["tag"], 'blue', dtype=object)

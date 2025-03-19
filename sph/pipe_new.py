@@ -119,7 +119,7 @@ def change_p(particles,idx):
                 particles['pressure'][i] = sum0/sum1
             else:
                 particles['pressure'][i] = 0
-     
+                 
     # 计算固壁外虚粒子的压强
     particles['pressure'][Htag] = particles['pressure'][Btag][dummy_idx] 
 
@@ -558,10 +558,10 @@ for i in range(1):
     # 更新密度和质量
     F_rho_1 = continue_equation(particles, idx, rho_1)
     
-    #更新半步速度,没有用到上面更新的密度
+    #更新半步速度
     F_velocity_1 = momentum_equation(particles, idx, velocity_1)
     
-    #更新半步位置，没有用到上面更新的速度
+    #更新半步位置
     #F_position_1 = change_position(particles, idx, position_1)
     F_position_1 = shifting(particles, idx, position_1, is_free_particles)
 
@@ -570,4 +570,5 @@ for i in range(1):
     particles['velocity'][Htag] = wall_extrapolation(particles,idx,particles['velocity'])[dummy_idx]
     particles['position'] = position_0 + 0.5*dt*(F_position_0 + F_position_1)
     #particles['position'] = position_0 + F_position_1
-    draw(particles, i)
+    if i % 300 == 0:
+        draw(particles, i)
