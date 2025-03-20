@@ -330,7 +330,7 @@ def free_surface(particles, idx):
                 FreeTag[n] = True
     return FreeTag 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def shifting(particles, idx, position, FreeTag):
     num = particles['rho'].shape[0]
     velocity = particles["velocity"]
@@ -539,14 +539,13 @@ for i in range(100):
     velocity_1[Htag] = wall_extrapolation(particles,idx,velocity_1)[dummy_idx]
     
     
-    '''
     #更新半步位置
     position_0 = particles['position']
     is_free_particles = free_surface(particles, idx)
     #F_position_0 = change_position(particles, idx, position_0)
     F_position_0 = shifting(particles, idx, position_0, is_free_particles)
     position_1 = position_0 + 0.5*dt*F_position_0
-    '''
+    
     particles['rho'] = rho_1
     particles['velocity'] = velocity_1
     particles['velocity'][Htag] = wall_extrapolation(particles,idx,velocity_1)[dummy_idx]
