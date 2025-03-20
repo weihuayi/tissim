@@ -1,15 +1,8 @@
 from fealpy.backend import backend_manager as bm
+bm.set_backend("pytorch")
 from fealpy.mesh.node_mesh import NodeMesh
 from fealpy.cfd.sph.particle_solver_new import SPHSolver, Space
 from fealpy.cfd.sph.particle_kernel_function_new import QuinticKernel
-
-bm.set_backend("pytorch")
-
-import torch   #打印
-import jax.numpy as jnp
-torch.set_printoptions(precision=8, sci_mode=False)
-torch.set_printoptions(threshold=jnp.inf)
-from jax import vmap   #Vmap
 
 EPS = bm.finfo(float).eps
 dx = 0.02
@@ -35,7 +28,7 @@ displacement, shift = space.periodic(side=box_size)
 
 node_self, neighbors = bm.query_point(mesh.nodedata["position"], mesh.nodedata["position"], 3*h, box_size, True, [True, True, True])
 
-for i in range(200):
+for i in range(1000):
     print(i)
     mesh.nodedata['mv'] += 1.0*dt*mesh.nodedata["dmvdt"]
     mesh.nodedata['tv'] = mesh.nodedata['mv']
@@ -60,6 +53,6 @@ for i in range(200):
     mesh.nodedata["dmvdt"] = solver.compute_mv_acceleration(\
             mesh.nodedata, neighbors, node_self, dr_i_j, dist, grad_w_dist_norm, p)
 
-    #fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
-    #solver.write_vtk(mesh.nodedata, fname)
+    fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
+    solver.write_vtk(mesh.nodedata, fname)
     

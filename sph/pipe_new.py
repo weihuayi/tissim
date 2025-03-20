@@ -4,6 +4,8 @@ import numpy as np
 import time
 import numba
 from numba.typed import List 
+np.set_printoptions(precision=16, threshold=np.inf)
+
 dx = 1.25e-4
 H = 1.5*dx
 dt = 1e-7
@@ -12,15 +14,15 @@ uwall = np.array([0.0, 0.0])
 domain=[0,0.05,0,0.005]
 init_domain=[0.0,0.005,0,0.005]
 
-rho0 = 737.54
+rho0 = 737.54 #rho_0
 #Tem = 500
-mu0 = 938.4118
-tau = 16834.4
-powern = 0.3083
+mu0 = 938.4118 #mu_0
+tau = 16834.4 #tau_star
+powern = 0.3083 #n
 B = 5.914e7
 
 eta = 0.5 #动量方程中的参数
-c1 = 0.0894
+c1 = 0.0894 #c_1
 
 maxstep = 20000
 dtype = [("position", "float64", (2, )), 
@@ -71,7 +73,7 @@ def find_neighbors_within_distance(points, h):
 @numba.jit(nopython=True)
 def kernel(r):
     d = np.linalg.norm(r)
-    q = d/H
+    q = d/H   #加入判断，q大于2的时候要等于0，TODO
     val = 7 * (1-q/2)**4 * (2*q+1) / (4*np.pi*H**2)
     return val
 
@@ -117,7 +119,7 @@ def change_p(particles,idx):
                 particles['pressure'][i] = sum0/sum1
             else:
                 particles['pressure'][i] = 0
-     
+                 
     # 计算固壁外虚粒子的压强
     particles['pressure'][Htag] = particles['pressure'][Btag][dummy_idx] 
 
@@ -286,7 +288,7 @@ def free_surface(particles, idx):
             gwij = gradkernel(xij)
             C += mass[j] * wij /rho[j]
             gradC += mass[j] * gwij /rho[j]
-        ''''
+        '''
         if C < 0.85:
             print("asd")
             FreeTag[i] = True
@@ -353,7 +355,7 @@ def shifting(particles, idx, position, FreeTag):
             gradC += mass[j] * gwij /rho[j] 
             As += mass[j]/rho[j] * np.outer(-xij,gwij) 
         normal = (As @ gradC)/np.linalg.norm(As @ gradC)
-        result[i] = -5*H*(np.eye(2) - np.outer(normal,normal))*gradC*dt
+        result[i] = -5*H*(np.eye(2) - np.outer(normal,normal))@gradC*dt
         result[i] *= np.linalg.norm(velocity[i]) 
     
     #内部粒子位移
@@ -419,9 +421,9 @@ def draw(particles, i):
     Gtag = particles['isGate']
     color = np.where(Btag, 'red', np.where(Htag, 'green', np.where(Gtag, 'black', 'blue')))
     c = particles['velocity'][:,0]
-    plt.figure(figsize=(20,2))
     #c = particles['rho']
     #c = particles['pressure']
+    plt.figure(figsize=(20,2))
     
     plt.scatter(particles['position'][:, 0], particles['position'][:, 1], c=c, cmap='jet', s=5)
     #plt.scatter(particles['position'][:, 0], particles['position'][:, 1], c=color, s=5)
@@ -429,7 +431,7 @@ def draw(particles, i):
     plt.clim(-7,7)
     
     plt.title(f"Time Step: {i}")
-    fname = './' + 'test_'+ str(i+1).zfill(10) + '.png'
+    fname = 'frames/' + 'test_'+ str(i+1).zfill(10) + '.png'
     plt.savefig(fname)
     #plt.show()
     #plt.pause(0.01)
@@ -440,7 +442,7 @@ def initial_position(dx):
     #fluid particles
     fp = np.mgrid[init_domain[0]:init_domain[1]:dx, \
             init_domain[2]+dx:init_domain[3]:dx].reshape(2,-1).T
-     
+
     #wall particles 
     x0 = np.arange(domain[0],domain[1],dx)
 
@@ -510,7 +512,7 @@ plt.grid(True)
 ax = plt.gca()
 ax.set_aspect('equal')
 plt.show()
-for i in range(100):
+for i in range(1):
     print("i:", i)
     particles = gate_change(particles) 
     
@@ -538,7 +540,6 @@ for i in range(100):
     velocity_1 = velocity_0 + 0.5*dt*F_velocity_0
     velocity_1[Htag] = wall_extrapolation(particles,idx,velocity_1)[dummy_idx]
     
-    
     #更新半步位置
     position_0 = particles['position']
     is_free_particles = free_surface(particles, idx)
@@ -562,11 +563,12 @@ for i in range(100):
     
     #更新半步位置
     #F_position_1 = change_position(particles, idx, position_1)
-    F_position_1 = shifting(particles, idx, particles['position'], is_free_particles)
+    F_position_1 = shifting(particles, idx, position_1, is_free_particles)
 
     particles['rho'] = rho_0 + 0.5*dt*(F_rho_1+F_rho_0)
     particles['velocity'] = velocity_0 + 0.5*dt*(F_velocity_0 + F_velocity_1)
     particles['velocity'][Htag] = wall_extrapolation(particles,idx,particles['velocity'])[dummy_idx]
-    #particles['position'] = position_0 + 0.5*dt*(F_position_0 + F_position_1)
-    particles['position'] = position_0 + F_position_1
-    draw(particles, i)
+    particles['position'] = position_0 + 0.5*dt*(F_position_0 + F_position_1)
+    #particles['position'] = position_0 + F_position_1
+    if i % 300 == 0:
+        draw(particles, i)
