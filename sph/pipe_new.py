@@ -332,7 +332,7 @@ def free_surface(particles, idx):
                 FreeTag[n] = True
     return FreeTag 
 
-@numba.jit(nopython=True)
+#@numba.jit(nopython=True)
 def shifting(particles, idx, position, FreeTag):
     num = particles['rho'].shape[0]
     velocity = particles["velocity"]
