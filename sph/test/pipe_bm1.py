@@ -3,14 +3,8 @@ bm.set_backend("pytorch")
 from fealpy.mesh.node_mesh import NodeMesh
 from fealpy.cfd.sph.particle_solver_new import SPHSolver
 from fealpy.cfd.sph.particle_kernel_function_new import WendlandC2Kernel
-
-import torch # 打印
-import numpy as np
-torch.set_printoptions(threshold=torch.inf)
-torch.set_printoptions(precision=16, threshold=torch.inf)
-np.set_printoptions(precision=16, threshold=np.inf)
 import matplotlib.pyplot as plt
-path = "test3/"
+path = "frames/"
 
 dx = 1.25e-4
 H = 1.5 * dx
@@ -31,14 +25,14 @@ c_1 = 0.0894
 B = 5.914e7
 rho_0 = 737.54
 
-mesh = NodeMesh.from_pipe_domain0(domain, init_domain, H, dx)
+mesh = NodeMesh.from_pipe_domain(domain, init_domain, H, dx)
 solver = SPHSolver(mesh)
 kernel = WendlandC2Kernel(h=H, dim=2)
 
 #wall-virtual
 v_node_self, w_neighbors = solver.wall_virtual(mesh.nodedata["position"], mesh.nodedata["tag"])
 
-for i in range(15000):
+for i in range(1000):
     print(i)
     #阀门粒子更新
     state = mesh.nodedata
@@ -63,7 +57,7 @@ for i in range(15000):
     state["p"] = solver.virtual_p(state, v_node_self, w_neighbors)
     state["sound"] = solver.sound(state, B, rho_0, c_1)
 
-    # 更新半步密度和半步质量，质量没有更新，需要更新吗？
+    # 更新半步密度
     A_s = solver.A_matrix(state, f_node, fwvg_neighbors, dr, dw)
     state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s)
     drho_0 = state["drhodt"]
@@ -89,7 +83,7 @@ for i in range(15000):
     state["p"] = solver.virtual_p(state, v_node_self, w_neighbors)
     state["sound"] = solver.sound(state, B, rho_0, c_1)
 
-    # 更新密度和质量
+    # 更新密度
     state["drhodt"] = solver.change_rho(state, f_node, fwvg_neighbors, dr, dis, dw, A_s)
     drho_1 = state["drhodt"]
     state["rho"] = state["rho"] + 0.5 * dt * state["drhodt"]
@@ -101,17 +95,19 @@ for i in range(15000):
     state["u"] = state["u"] + 0.5 * dt * state["dudt"]
     drdt_1 = state["u"] 
 
+    # 预测-校正时间积分
     state["rho"] = rho + 0.5 * dt * (drho_0 + drho_1)
     state["u"] = u + 0.5 * dt * (du_0 + du_1)
     state["u"] = solver.vtag_u(state, v_node_self, w_neighbors, w_node, fg_neighbors, fg_w)
     state["position"] = bm.set_at(state["position"] , f_tag, r[f_tag]+0.5*dt*(drdt_0+drdt_1)[f_tag]) 
     
+    # shifting 位移
     in_f, free, dC_i , normal = solver.free_surface(state, f_node, fwvg_neighbors, dr, dis, w, dw, A_s, H)
     state["drdt"] = solver.shifting_r(state, in_f, free, dC_i, normal, dt, H)
     state["position"] = state["position"] + dt * state["drdt"] 
     
-    fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
-    solver.write_vtk(mesh.nodedata, fname)
+    #fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
+    #solver.write_vtk(mesh.nodedata, fname)
 
 '''
 color = np.full_like(state["tag"], 'blue', dtype=object)

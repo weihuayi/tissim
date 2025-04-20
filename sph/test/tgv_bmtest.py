@@ -3,7 +3,11 @@ bm.set_backend("pytorch")
 from fealpy.mesh.node_mesh import NodeMesh
 from fealpy.cfd.sph.particle_solver_new import SPHSolver, Space
 from fealpy.cfd.sph.particle_kernel_function_new import QuinticKernel
+import time
 
+bm.set_default_device('cuda')
+
+start = time.time()
 EPS = bm.finfo(float).eps
 dx = 0.02
 dy = dx
@@ -28,7 +32,7 @@ displacement, shift = space.periodic(side=box_size)
 
 node_self, neighbors = bm.query_point(mesh.nodedata["position"], mesh.nodedata["position"], 3*h, box_size, True, [True, True, True])
 
-for i in range(1000):
+for i in range(100):
     print(i)
     mesh.nodedata['mv'] += 1.0*dt*mesh.nodedata["dmvdt"]
     mesh.nodedata['tv'] = mesh.nodedata['mv']
@@ -53,6 +57,8 @@ for i in range(1000):
     mesh.nodedata["dmvdt"] = solver.compute_mv_acceleration(\
             mesh.nodedata, neighbors, node_self, dr_i_j, dist, grad_w_dist_norm, p)
 
-    zfname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
-    solver.write_vtk(mesh.nodedata, fname)
+    #fname = path + 'test_'+ str(i+1).zfill(10) + '.vtk'
+    #solver.write_vtk(mesh.nodedata, fname)
     
+end = time.time()
+print(end-start)
