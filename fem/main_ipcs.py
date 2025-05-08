@@ -17,8 +17,8 @@ from fealpy.fem import DirichletBC
 from fealpy.solver import spsolve 
 
 output = './'
-T = 1
-nt = 500
+T = 10
+nt = 1000
 n = 16
 
 pde = ChannelFlow()
@@ -69,8 +69,7 @@ Bform2 = solver.IPCS_BForm_2()
 Lform2 = solver.IPCS_LForm_2()
 AA2 = Bform2.assembly()
 
-print(bm.sum(bm.abs(AA2.toarray())))
-for i in range(100):
+for i in range(10):
     t = timeline.next_time_level()
     print(f"第{i+1}步")
     print("time=", t)
@@ -82,6 +81,7 @@ for i in range(100):
 
     solver.update_ipcs_1(us, p0)
     b1 = Lform1.assembly()
+    print("p1", bm.sum(bm.abs(b1)))
     A1,b1 = BCp.apply(AA1, b1)
     p1[:] = spsolve(A1, b1, 'mumps')
 
@@ -95,7 +95,8 @@ for i in range(100):
     mesh.nodedata['u'] = u1.reshape(2,-1).T
     mesh.nodedata['p'] = p1
     mesh.to_vtk(fname=fname)
-    #print(mesh.error(pde.velocity, u1))
-    print(bm.max(u1))
+    print(bm.sum(bm.abs(u1)))
+    print(bm.sum(bm.abs(p1)))
+    print(mesh.error(pde.velocity, u1))
 
     timeline.advance()

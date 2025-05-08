@@ -34,16 +34,6 @@ class Solver():
         self.q = q
         self.is_bd = pde.is_wall_boundary
     
-    def CH_BForm_0(self):
-        phispace = self.phispace
-        dt = self.dt
-        L_d = self.pde.L_d
-        epsilon = self.pde.epsilon
-        s = self.pde.s
-        V_s = self.pde.V_s
-        q = self.q
-        return A
-
     def CH_BForm(self):
         phispace = self.phispace
         dt = self.dt

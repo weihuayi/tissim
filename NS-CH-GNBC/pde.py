@@ -61,11 +61,17 @@ class CouetteFlow:
     def init_phi(self,p):
         x = p[..., 0]
         y = p[..., 1]   
+        epsilon = self.epsilon
+        '''
         tagfluid0 = bm.logical_and(x > -0.25, x < 0.25)
         tagfluid1 = bm.logical_not(tagfluid0)
         phi = bm.zeros_like(x)
         phi[tagfluid0] = 1.0
         phi[tagfluid1] = -1.0
+        '''
+        phi = bm.tanh((x + 0.25) / (bm.sqrt(bm.tensor(2)) * epsilon)) * \
+                bm.tanh((0.25 - x) / (bm.sqrt(bm.tensor(2)) * epsilon))
+
         return phi
 
     @cartesian        

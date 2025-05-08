@@ -146,7 +146,7 @@ class Solver():
         self.u_C = ScalarConvectionIntegrator(q=q)
         D = ScalarDiffusionIntegrator(coef=2*dt, q=q)
         ## TODO:和老师确认一下这个边界积分子 
-        FM = TangentFaceMassIntegrator(coef=2*dt/L_s, q=q, threshold=self.pde.is_wall_boundary)
+        
         A00.add_integrator(M)
         A00.add_integrator(self.u_C)
         A00.add_integrator(D)
@@ -216,7 +216,6 @@ class Solver():
         
         def u_BF_SI_coef(bcs, index):
             L_phi = epsilon*bm.einsum('eld, ed -> el', phi_2.grad_value(bcs, index), normal[index,:])
-            print(phi_2.grad_value(bcs, index))
             L_phi -= 2*(bm.sqrt(bm.array(2))/6)*bm.pi*bm.cos(theta_s)*bm.cos((bm.pi/2)*phi_2(bcs, index))
             L_phi +=   (bm.sqrt(bm.array(2))/6)*bm.pi*bm.cos(theta_s)*bm.cos((bm.pi/2)*phi_1(bcs, index))
             

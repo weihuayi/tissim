@@ -28,8 +28,8 @@ bm.set_backend('pytorch')
 #bm.set_default_device('cuda')
 
 output = './'
-#h = 1/256
-h = 1/10
+h = 1/128
+#h = 1/10
 T = 2
 nt = int(T/(0.1*h))
 
