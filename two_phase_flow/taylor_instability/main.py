@@ -6,17 +6,22 @@ from fealpy.cfd.simulation.fem import CahnHilliardModel
 from pde import RayleignTaylor
 from solver import two_phase_phield_solver
 from fealpy.decorator import barycentric
-from fealpy.solver import spsolve
 from fealpy.fem import DirichletBC
+
+from fealpy.solver import DirectSolverManager
+from fealpy.solver import spsolve, cg
 import psutil
+import time 
 
 
 bm.set_backend('pytorch')
+#bm.set_default_device('cuda')
 
 dt = 0.00125*bm.sqrt(bm.array(2))
 pde = RayleignTaylor()
 #mesh = pde.init_mesh(nx=128, ny=512)
 mesh = pde.init_mesh(nx=64, ny=256)
+#mesh = pde.init_mesh(nx=32, ny=128)
 pde.epsilon = 0.08*bm.sqrt(2*bm.min(mesh.entity_measure('edge')))
 
 ns_eqaution = IncompressibleNS(pde,init_variables=False) 
@@ -61,13 +66,11 @@ ch_LForm = ch_solver.LForm()
 
 is_bd = ns_solver.uspace.is_boundary_dof((pde.is_ux_boundary, pde.is_uy_boundary), method='interp')
 is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
-print(is_bd.shape)
 gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
-BC = DirichletBC((ns_solver.uspace,ns_solver.pspace), gd=gd, 
-                      threshold=is_bd, method='interp')
+BC = DirichletBC((ns_solver.uspace, ns_solver.pspace), gd=gd, threshold=is_bd, method='interp')
 
 #BC = DirichletBC((ns_solver.uspace,ns_solver.pspace), gd=(pde.velocity_boundary, pde.pressure_boundary), 
-#                      threshold=(pde.is_u_dboundary, pde.is_p_dboundary), method='interp')
+#                      threshold=(pde.is_u_boundary, pde.is_p_boundary), method='interp')
 
 #设置参数
 ns_eqaution.set_coefficient('viscosity', 1/pde.Re)
@@ -76,22 +79,25 @@ ch_equation.set_coefficient('mobility', 1/pde.Pe)
 ch_equation.set_coefficient('interface', pde.epsilon**2)
 ch_equation.set_coefficient('free_energy', 1)
 
-
+#mgr = DirectSolverManager()
 for i in range(1,2000):
     # 设置参数
     print("iteration:", i)
-    print("内存占用情况:",psutil.Process().memory_info().rss / 1024 ** 2, "MB")  
-
+    print("内存占用",psutil.Process().memory_info().rss / 1024 ** 2, "MB")  # RSS内存(MB)    
+    
+    t0 = time.time()
     ch_solver.update(u0, u1, phi0, phi1)
     ch_A = ch_BFrom.assembly()
     ch_b = ch_LForm.assembly()
-    ch_x = spsolve(ch_A, ch_b, 'mumps')
-    
+    t1 = time.time()
+    ch_x = spsolve(ch_A, ch_b, 'cupy')
+    t2 = time.time()
+
     phi2[:] = ch_x[:phigdof]
     mu2[:] = ch_x[phigdof:]  
     
-
     # 更新NS方程参数
+    t3 = time.time()
     rho = solver.rho(phi1) 
     @barycentric
     def body_force(bcs, index):
@@ -106,17 +112,21 @@ for i in range(1,2000):
     ns_eqaution.set_coefficient('body_force', body_force)
 
     ns_solver.update(u0, u1)
-    
+     
     ns_A = ns_BForm.assembly()
     ns_b = ns_LForm.assembly()
     ns_A,ns_b = BC.apply(ns_A, ns_b)
-    
-    ns_x = spsolve(ns_A, ns_b, 'mumps')
+    t4 = time.time() 
+    ns_x = spsolve(ns_A, ns_b, 'cupy')
+    t5 = time.time()
 
+    print("CH组装时间:", t1-t0)
+    print("求解CH方程时间:", t2-t1)
+    print("NS组装时间:", t4-t3)
+    print("求解NS方程时间:", t5-t4)
     u2[:] = ns_x[:ugdof]
     p2[:] = ns_x[ugdof:]
-    
-    
+        
     u0[:] = u1[:]
     u1[:] = u2[:]
     phi0[:] = phi1[:]

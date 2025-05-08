@@ -69,7 +69,7 @@ class RayleignTaylor:
         return tag_up | tag_down | tag_left | tag_right 
     
     @cartesian
-    def is_uy_boundary(self, p):
+    def is_ux_boundary(self, p):
         tag_up = bm.abs(p[..., 1] - 4.0) < self.eps
         tag_down = bm.abs(p[..., 1] - 0.0) < self.eps
         tag_left = bm.abs(p[..., 0] - 0.0) < self.eps
@@ -77,7 +77,7 @@ class RayleignTaylor:
         return tag_up | tag_down | tag_left | tag_right 
     
     @cartesian
-    def is_ux_boundary(self, p):
+    def is_uy_boundary(self, p):
         tag_up = bm.abs(p[..., 1] - 4.0) < self.eps
         tag_down = bm.abs(p[..., 1] - 0.0) < self.eps
         return tag_up | tag_down  
