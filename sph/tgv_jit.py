@@ -71,3 +71,48 @@ for i in range(1000):
 
 end = time.time()
 print(end-start)
+
+# 解析解参数
+Re = 100
+b = -8 * np.pi / Re
+U = 1
+L = 1
+
+# 获取粒子位置
+x = np.array(mesh.nodedata["position"][:, 0])
+y = np.array(mesh.nodedata["position"][:, 1])
+
+# 计算当前时间
+t = i * dt  # 假设 i 是当前时间步索引
+
+# 计算解析解
+u_exact = -U * np.exp(b * t) * np.cos(2 * np.pi * x) * np.sin(2 * np.pi * y)
+v_exact = U * np.exp(b * t) * np.sin(2 * np.pi * x) * np.cos(2 * np.pi * y)
+
+# 读取数值解
+u_numeric = np.array(mesh.nodedata["mv"][:, 0])
+v_numeric = np.array(mesh.nodedata["mv"][:, 1])
+
+# 计算误差
+error_u = u_numeric - u_exact
+error_v = v_numeric - v_exact
+
+# 计算均方误差 (MSE)
+mse_u = np.mean(error_u ** 2)
+mse_v = np.mean(error_v ** 2)
+l2_error = np.sqrt(mse_u + mse_v)
+
+# 输出误差
+print(f"Time: {t:.4f}, MSE_u: {mse_u:.6f}, MSE_v: {mse_v:.6f}, L2 Error: {l2_error:.6f}")
+
+# 可视化误差分布
+fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+sc1 = ax[0].scatter(x, y, c=error_u, cmap='coolwarm', s=10)
+ax[0].set_title("Error in u-velocity")
+plt.colorbar(sc1, ax=ax[0])
+
+sc2 = ax[1].scatter(x, y, c=error_v, cmap='coolwarm', s=10)
+ax[1].set_title("Error in v-velocity")
+plt.colorbar(sc2, ax=ax[1])
+
+plt.savefig('particle_positions.png', dpi=300)
