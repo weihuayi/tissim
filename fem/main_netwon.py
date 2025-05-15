@@ -10,7 +10,7 @@
 from fealpy.backend import backend_manager as bm
 from fealpy.functionspace import LagrangeFESpace
 from fealpy.functionspace import TensorFunctionSpace 
-from fealpy.cfd import NSFEMSolver
+from ns_fem_solver import NSFEMSolver
 from fealpy.fem import DirichletBC
 from fealpy.solver import spsolve 
 from fealpy.pde.navier_stokes_equation_2d import ChannelFlow

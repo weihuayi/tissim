@@ -3,7 +3,7 @@ from fealpy.cfd.equation import IncompressibleNS
 from fealpy.cfd.equation import CahnHilliard
 from fealpy.cfd.simulation.fem import BDF2
 from fealpy.cfd.simulation.fem import CahnHilliardModel 
-from pde import RayleignTaylor
+from pde import TwoPhaseModel
 from solver import two_phase_phield_solver
 from fealpy.decorator import barycentric
 from fealpy.fem import DirichletBC
@@ -13,16 +13,16 @@ from fealpy.solver import spsolve, cg
 import psutil
 import time 
 
+'''
+管道流
+'''
 
 bm.set_backend('pytorch')
 #bm.set_default_device('cuda')
 
 dt = 0.00125*bm.sqrt(bm.array(2))
-pde = RayleignTaylor()
-mesh = pde.init_mesh(nx=128, ny=512)
-#mesh = pde.init_mesh(nx=64, ny=256)
-#mesh = pde.init_mesh(nx=32, ny=128)
-#pde.epsilon = 0.08*bm.sqrt(2*bm.min(mesh.entity_measure('edge')))
+pde = TwoPhaseModel()
+mesh = pde.init_mesh(nx=512, ny=128)
 
 ns_eqaution = IncompressibleNS(pde,init_variables=False) 
 ns_solver = BDF2(ns_eqaution)
@@ -62,14 +62,16 @@ ns_LForm = ns_solver.LForm()
 ch_BFrom = ch_solver.BForm()
 ch_LForm = ch_solver.LForm()
 
-
+'''
 is_bd = ns_solver.uspace.is_boundary_dof((pde.is_ux_boundary, pde.is_uy_boundary), method='interp')
 is_bd = bm.concatenate((is_bd, bm.zeros(pgdof, dtype=bm.bool)))
 gd = bm.concatenate((bm.zeros(ugdof, dtype=bm.float64), bm.zeros(pgdof, dtype=bm.float64)))
 BC = DirichletBC((ns_solver.uspace, ns_solver.pspace), gd=gd, threshold=is_bd, method='interp')
-
+'''
+BC = DirichletBC((ns_solver.uspace,ns_solver.pspace), gd=(pde.velocity_boundary, pde.pressure_boundary), 
+                      threshold=(pde.is_u_boundary, pde.is_p_boundary), method='interp')
 #BC = DirichletBC((ns_solver.uspace,ns_solver.pspace), gd=(pde.velocity_boundary, pde.pressure_boundary), 
-#                      threshold=(pde.is_u_boundary, pde.is_p_boundary), method='interp')
+#                      threshold=(None, None), method='interp')
 
 #设置参数
 ns_eqaution.set_coefficient('viscosity', 1/pde.Re)
@@ -98,17 +100,9 @@ for i in range(1,2000):
     # 更新NS方程参数
     t3 = time.time()
     rho = solver.rho(phi1) 
-    @barycentric
-    def body_force(bcs, index):
-        result = rho(bcs, index)
-        result = bm.stack((result, result), axis=-1)
-        result[..., 0] = (1/pde.Fr) * result[..., 0] * 0
-        result[..., 1] = (1/pde.Fr) * result[..., 1] * -1
-        return result
     
     ns_eqaution.set_coefficient('time_derivative', rho)
     ns_eqaution.set_coefficient('convection', rho)
-    ns_eqaution.set_coefficient('body_force', body_force)
 
     ns_solver.update(u0, u1)
      
@@ -135,7 +129,7 @@ for i in range(1,2000):
     
     mesh.nodedata['phi'] = phi2
     mesh.nodedata['velocity'] = u2.reshape(2,-1).T  
-    mesh.nodedata['pressure'] = p2 
     mesh.nodedata['rho'] = rho
+    mesh.nodedata['pressure'] = p2
     fname = './' + 'test_'+ str(i+1).zfill(10) + '.vtu'
     mesh.to_vtk(fname=fname)

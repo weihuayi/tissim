@@ -3,9 +3,6 @@ from fealpy.mesh import TriangleMesh
 from fealpy.decorator import cartesian,barycentric
 
 
-
-
-
 class TwoPhaseModel:
     '''
     Injection model

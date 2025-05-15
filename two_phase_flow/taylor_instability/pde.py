@@ -5,7 +5,7 @@ from fealpy.decorator import cartesian,barycentric
 
 class RayleignTaylor:
     def __init__(self, eps=1e-10):
-        self.rho_up = 3
+        self.rho_up = 100
         self.rho_down = 1
         self.Re = 3000
         self.Fr = 1
