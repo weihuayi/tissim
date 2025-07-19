@@ -1,7 +1,7 @@
 from fealpy.backend import backend_manager as bm
 from fealpy.fem import LevelSetLFEMModel
 from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
-from fealpy.cfd import NSFEMSolver
+from fealpy.cfd.backup import NSFEMSolver
 from fealpy.functionspace import LagrangeFESpace, TensorFunctionSpace
 
 from fealpy.decorator import cartesian,barycentric
